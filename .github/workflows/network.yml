@@ -62,9 +62,14 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
-        if: inputs.action == 'plan'
         run: |
-          terraform plan -no-color -target=module.network -out=tfplan.bin | tee plan_output.txt
+          if [ "${{ inputs.action }}" = "destroy" ]; then
+            PLAN_MODE="-destroy"
+          else
+            PLAN_MODE=""
+          fi
+
+          terraform plan $PLAN_MODE -no-color -target=module.network -out=tfplan.bin | tee plan_output.txt
           terraform show -json tfplan.bin > plan.json
 
           {
@@ -83,9 +88,23 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform apply
-        if: inputs.action == 'apply'
-        run: terraform apply -target=module.network -auto-approve
+        if: inputs.action != 'plan'
+        run: |
+          terraform apply tfplan.bin | tee apply_output.txt
 
-      - name: Terraform destroy
-        if: inputs.action == 'destroy'
-        run: terraform destroy -target=module.network -auto-approve
+          {
+            if [ "${{ inputs.action }}" = "destroy" ]; then
+              echo ""
+              echo "✅ **Destroy complete for module.network.**"
+            else
+              echo ""
+              echo "✅ **Apply complete for module.network.**"
+            fi
+            echo ""
+            echo "<details><summary>Raw apply output</summary>"
+            echo ""
+            echo '```'
+            cat apply_output.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
