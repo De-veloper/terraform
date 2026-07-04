@@ -1,0 +1,42 @@
+name: network module
+
+on:
+  push:
+    paths:
+      - "modules/network/**"
+  pull_request:
+    paths:
+      - "modules/network/**"
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS profile
+        run: |
+          mkdir -p ~/.aws
+          cat <<EOF >> ~/.aws/credentials
+          [terraform-practice]
+          aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EOF
+          cat <<EOF >> ~/.aws/config
+          [profile terraform-practice]
+          region = us-east-1
+          EOF
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive modules/network
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -target=module.network
