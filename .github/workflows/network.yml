@@ -1,4 +1,5 @@
 name: network module
+run-name: "network module - ${{ inputs.action }}"
 
 on:
   workflow_dispatch:
@@ -22,6 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show selected action
+        run: |
+          echo "### Action: \`${{ inputs.action }}\` (module.network)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Running action: ${{ inputs.action }}"
 
       - uses: hashicorp/setup-terraform@v3
 
@@ -57,7 +63,14 @@ jobs:
 
       - name: Terraform plan
         if: inputs.action == 'plan'
-        run: terraform plan -target=module.network
+        run: |
+          terraform plan -no-color -target=module.network | tee plan_output.txt
+          {
+            echo "## Terraform Plan: module.network"
+            echo '```'
+            cat plan_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform apply
         if: inputs.action == 'apply'
