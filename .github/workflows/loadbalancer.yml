@@ -1,12 +1,21 @@
 name: loadbalancer module
 
 on:
-  push:
-    paths:
-      - "modules/loadbalancer/**"
-  pull_request:
-    paths:
-      - "modules/loadbalancer/**"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to run"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+      confirm:
+        description: 'Type "destroy" to confirm (required only when action = destroy)'
+        required: false
+        type: string
 
 jobs:
   terraform:
@@ -29,6 +38,14 @@ jobs:
           region = us-east-1
           EOF
 
+      - name: Guard destroy confirmation
+        if: inputs.action == 'destroy'
+        run: |
+          if [ "${{ inputs.confirm }}" != "destroy" ]; then
+            echo "::error::Refusing to destroy: 'confirm' input must be exactly 'destroy'."
+            exit 1
+          fi
+
       - name: Terraform fmt check
         run: terraform fmt -check -recursive modules/loadbalancer
 
@@ -39,4 +56,13 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
+        if: inputs.action == 'plan'
         run: terraform plan -target=module.loadbalancer
+
+      - name: Terraform apply
+        if: inputs.action == 'apply'
+        run: terraform apply -target=module.loadbalancer -auto-approve
+
+      - name: Terraform destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -target=module.loadbalancer -auto-approve
