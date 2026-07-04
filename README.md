@@ -91,3 +91,21 @@ real AWS instead:
 
 Check state
 terraform state list
+
+## Remote state backend
+
+State is stored remotely in S3 (bucket `tewen-terraform-state-tewen`,
+key `terraform.tfstate`), not locally — see the `backend "s3"` block in
+`main.tf`. This is what lets both your local machine and the GitHub Actions
+workflows see the same state, instead of each having its own disconnected
+copy (which previously caused a `destroy` run in CI to see "nothing to
+destroy" even though resources existed in AWS).
+
+Locking uses Terraform's native S3 lockfile support (`use_lockfile = true`,
+available since Terraform 1.10) — no DynamoDB table required.
+
+If you ever change the `backend` block, re-run:
+```
+terraform init -migrate-state
+```
+to move state into the newly configured backend.
