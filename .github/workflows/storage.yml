@@ -64,12 +64,37 @@ jobs:
       - name: Terraform plan
         if: inputs.action == 'plan'
         run: |
-          terraform plan -no-color -target=module.storage | tee plan_output.txt
+          terraform plan -no-color -target=module.storage -out=tfplan.bin | tee plan_output.txt
+          terraform show -json tfplan.bin > plan.json
+
           {
             echo "## Terraform Plan: module.storage"
+            echo ""
+            grep -E "^(Plan:|No changes)" plan_output.txt || true
+            echo ""
+            echo "| Status | Resource |"
+            echo "|---|---|"
+            jq -r '
+              def icon:
+                if      . == ["create"]         then "🟢 Create"
+                elif    . == ["update"]         then "🟡 Update"
+                elif    . == ["delete"]         then "🔴 Destroy"
+                elif    . == ["delete","create"] then "🔁 Replace"
+                elif    . == ["create","delete"] then "🔁 Replace"
+                elif    . == ["read"]           then "🔍 Read"
+                else "⚪ " + join(",")
+                end;
+              .resource_changes[]
+              | select(.change.actions != ["no-op"])
+              | "| " + (.change.actions | icon) + " | `" + .address + "` |"
+            ' plan.json
+            echo ""
+            echo "<details><summary>Raw plan output</summary>"
+            echo ""
             echo '```'
             cat plan_output.txt
             echo '```'
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform apply
