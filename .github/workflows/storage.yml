@@ -72,22 +72,7 @@ jobs:
             echo ""
             grep -E "^(Plan:|No changes)" plan_output.txt || true
             echo ""
-            echo "| Status | Resource |"
-            echo "|---|---|"
-            jq -r '
-              def icon:
-                if      . == ["create"]         then "🟢 Create"
-                elif    . == ["update"]         then "🟡 Update"
-                elif    . == ["delete"]         then "🔴 Destroy"
-                elif    . == ["delete","create"] then "🔁 Replace"
-                elif    . == ["create","delete"] then "🔁 Replace"
-                elif    . == ["read"]           then "🔍 Read"
-                else "⚪ " + join(",")
-                end;
-              .resource_changes[]
-              | select(.change.actions != ["no-op"])
-              | "| " + (.change.actions | icon) + " | `" + .address + "` |"
-            ' plan.json
+            python3 scripts/plan_summary.py plan.json
             echo ""
             echo "<details><summary>Raw plan output</summary>"
             echo ""
